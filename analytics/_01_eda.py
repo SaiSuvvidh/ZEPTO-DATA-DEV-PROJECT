@@ -37,10 +37,35 @@ def profile(df):
 
     return missing_pct
 
+def clean_missing(df):
+    # embarked/embark_town: <5% missing -> drop rows (only 2 rows lost)
+    df = df.dropna(subset=["embarked", "embark_town"]).copy()
+
+    # age: 5-30% missing -> impute with median grouped by pclass+sex
+    # (more defensible than a single global median -- age distributions
+    # differ meaningfully by class and sex in this dataset)
+    df["age"] = df.groupby(["pclass", "sex"])["age"].transform(
+        lambda s: s.fillna(s.median())
+    )
+
+    # deck: >30% missing -> too sparse to impute reliably; encode "missing"
+    # as its own category rather than dropping the column, since whether
+    # a cabin/deck was recorded likely correlates with pclass/fare and
+    # therefore survival -- that signal is worth keeping.
+    df["deck"] = df["deck"].astype(object).fillna("Unknown")
+
+    remaining_missing = df.isna().sum()
+    remaining_missing = remaining_missing[remaining_missing > 0]
+    print("\n=== Remaining missing values after cleaning ===")
+    print(remaining_missing if len(remaining_missing) else "None")
+
+    return df
+
 
 def main():
     df = load_and_save()
     missing_pct = profile(df)
+    df = clean_missing(df)
     return df, missing_pct
 
 
