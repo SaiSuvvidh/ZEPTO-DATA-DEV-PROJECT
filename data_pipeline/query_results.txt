@@ -1,0 +1,224 @@
+
+--- Q1: 5 cheapest in-stock books ---
+SELECT title, price_inr, rating
+        FROM books
+        WHERE in_stock = 1
+        ORDER BY price_inr ASC
+        LIMIT 5;
+{'title': 'Patience', 'price_inr': 1071.88, 'rating': 3}
+{'title': 'In Her Wake', 'price_inr': 1354.62, 'rating': 1}
+{'title': 'Princess Between Worlds (Wide-Awake Princess #5)', 'price_inr': 1407.37, 'rating': 5}
+{'title': 'Princess Jellyfish 2-in-1 Omnibus, Vol. 01 (Princess Jellyfish 2-in-1 Omnibus #1)', 'price_inr': 1435.855, 'rating': 5}
+{'title': 'Starving Hearts (Triangular Trade Trilogy, #1)', 'price_inr': 1475.945, 'rating': 2}
+
+--- Q2: distinct categories ---
+SELECT DISTINCT category_name FROM categories ORDER BY category_name;
+{'category_name': 'Art'}
+{'category_name': 'Business'}
+{'category_name': 'Childrens'}
+{'category_name': 'Contemporary'}
+{'category_name': 'Default'}
+{'category_name': 'Fantasy'}
+{'category_name': 'Fiction'}
+{'category_name': 'Food and Drink'}
+{'category_name': 'Health'}
+{'category_name': 'Historical Fiction'}
+{'category_name': 'History'}
+{'category_name': 'Horror'}
+{'category_name': 'Music'}
+{'category_name': 'Mystery'}
+{'category_name': 'New Adult'}
+{'category_name': 'Nonfiction'}
+{'category_name': 'Philosophy'}
+{'category_name': 'Poetry'}
+{'category_name': 'Politics'}
+{'category_name': 'Romance'}
+{'category_name': 'Science'}
+{'category_name': 'Science Fiction'}
+{'category_name': 'Self Help'}
+{'category_name': 'Sequential Art'}
+{'category_name': 'Spirituality'}
+{'category_name': 'Thriller'}
+{'category_name': 'Travel'}
+{'category_name': 'Young Adult'}
+
+--- Q3: books priced 500-1000 INR ---
+SELECT title, price_inr
+        FROM books
+        WHERE price_inr BETWEEN 500 AND 1000
+        ORDER BY price_inr;
+
+--- Q4: books rated 4 or 5 stars ---
+SELECT title, rating
+        FROM books
+        WHERE rating IN (4, 5)
+        ORDER BY rating DESC, title;
+{'title': '#HigherSelfie: Wake Up Your Life. Free Your Soul. Find Your Tribe.', 'rating': 5}
+{'title': 'Black Dust', 'rating': 5}
+{'title': 'Chase Me (Paris Nights #2)', 'rating': 5}
+{'title': 'Join', 'rating': 5}
+{'title': 'Princess Between Worlds (Wide-Awake Princess #5)', 'rating': 5}
+{'title': 'Princess Jellyfish 2-in-1 Omnibus, Vol. 01 (Princess Jellyfish 2-in-1 Omnibus #1)', 'rating': 5}
+{'title': 'Private Paris (Private #10)', 'rating': 5}
+{'title': 'Rip it Up and Start Again', 'rating': 5}
+{'title': 'Sapiens: A Brief History of Humankind', 'rating': 5}
+{'title': "Scott Pilgrim's Precious Little Life (Scott Pilgrim #1)", 'rating': 5}
+{'title': 'Set Me Free', 'rating': 5}
+{'title': "Sophie's World", 'rating': 5}
+{'title': "The Activist's Tao Te Ching: Ancient Advice for a Modern Revolution", 'rating': 5}
+{'title': 'The Elephant Tree', 'rating': 5}
+{'title': 'The Four Agreements: A Practical Guide to Personal Freedom', 'rating': 5}
+{'title': 'The Inefficiency Assassin: Time Management Tactics for Working Smarter, Not Longer', 'rating': 5}
+{'title': 'Thirst', 'rating': 5}
+{'title': 'We Love You, Charlie Freeman', 'rating': 5}
+{'title': 'Worlds Elsewhere: Journeys Around Shakespeare’s Globe', 'rating': 5}
+{'title': 'Behind Closed Doors', 'rating': 4}
+{'title': 'In the Country We Love: My Family Divided', 'rating': 4}
+{'title': 'Mama Tried: Traditional Italian Cooking for the Screwed, Crude, Vegan, and Tattooed', 'rating': 4}
+{'title': 'Outcast, Vol. 1: A Darkness Surrounds Him (Outcast #1)', 'rating': 4}
+{'title': "Shakespeare's Sonnets", 'rating': 4}
+{'title': 'Sharp Objects', 'rating': 4}
+{'title': 'Spark Joy: An Illustrated Master Class on the Art of Organizing and Tidying Up', 'rating': 4}
+{'title': 'The Boys in the Boat: Nine Americans and Their Epic Quest for Gold at the 1936 Berlin Olympics', 'rating': 4}
+{'title': 'The Death of Humanity: and the Case for Life', 'rating': 4}
+{'title': 'The Dirty Little Secrets of Getting Your Dream Job', 'rating': 4}
+{'title': "The Most Perfect Thing: Inside (and Outside) a Bird's Egg", 'rating': 4}
+{'title': 'The Nameless City (The Nameless City #1)', 'rating': 4}
+{'title': 'The Past Never Ends', 'rating': 4}
+{'title': 'This One Summer', 'rating': 4}
+{'title': 'Unseen City: The Majesty of Pigeons, the Discreet Charm of Snails & Other Wonders of the Urban Wilderness', 'rating': 4}
+{'title': 'Untitled Collection: Sabbath Poems 2014', 'rating': 4}
+{'title': 'Wall and Piece', 'rating': 4}
+
+--- Q5: all books joined with category name ---
+SELECT c.category_name, b.title, b.rating, b.price_inr
+        FROM books b
+        JOIN categories c ON b.category_id = c.category_id
+        ORDER BY c.category_name, b.rating DESC;
+{'category_name': 'Art', 'title': 'Wall and Piece', 'rating': 4, 'price_inr': 4660.99}
+{'category_name': 'Business', 'title': 'The Dirty Little Secrets of Getting Your Dream Job', 'rating': 4, 'price_inr': 3517.3700000000003}
+{'category_name': 'Childrens', 'title': 'Birdsong: A Story in Pictures', 'rating': 3, 'price_inr': 5764.52}
+{'category_name': 'Childrens', 'title': 'The Bear and the Piano', 'rating': 1, 'price_inr': 3891.895}
+{'category_name': 'Childrens', 'title': 'The Secret of Dreadwillow Carse', 'rating': 1, 'price_inr': 5921.715}
+{'category_name': 'Contemporary', 'title': 'When We Collided', 'rating': 1, 'price_inr': 3351.735}
+{'category_name': 'Default', 'title': 'The Inefficiency Assassin: Time Management Tactics for Working Smarter, Not Longer', 'rating': 5, 'price_inr': 2172.245}
+{'category_name': 'Default', 'title': 'The Boys in the Boat: Nine Americans and Their Epic Quest for Gold at the 1936 Berlin Olympics', 'rating': 4, 'price_inr': 2384.3}
+{'category_name': 'Default', 'title': 'The Coming Woman: A Novel Based on the Life of the Infamous Feminist, Victoria Woodhull', 'rating': 3, 'price_inr': 1891.615}
+{'category_name': 'Default', 'title': "America's Cradle of Quarterbacks: Western Pennsylvania's Football Factory from Johnny Unitas to Joe Montana", 'rating': 3, 'price_inr': 2373.75}
+{'category_name': 'Default', 'title': 'Aladdin and His Wonderful Lamp', 'rating': 3, 'price_inr': 5605.215}
+{'category_name': 'Default', 'title': 'Penny Maybe', 'rating': 3, 'price_inr': 3512.095}
+{'category_name': 'Default', 'title': 'Starving Hearts (Triangular Trade Trilogy, #1)', 'rating': 2, 'price_inr': 1475.945}
+{'category_name': 'Default', 'title': 'Maude (1883-1993):She Grew Up with the country', 'rating': 2, 'price_inr': 1901.11}
+{'category_name': 'Default', 'title': 'Soul Reader', 'rating': 2, 'price_inr': 4175.69}
+{'category_name': 'Fantasy', 'title': 'Princess Between Worlds (Wide-Awake Princess #5)', 'rating': 5, 'price_inr': 1407.37}
+{'category_name': 'Fantasy', 'title': 'Unicorn Tracks', 'rating': 3, 'price_inr': 1981.29}
+{'category_name': 'Fantasy', 'title': 'Saga, Volume 6 (Saga (Collected Editions) #6)', 'rating': 3, 'price_inr': 2639.61}
+{'category_name': 'Fantasy', 'title': 'Masks and Shadows', 'rating': 2, 'price_inr': 5950.2}
+{'category_name': 'Fiction', 'title': 'Private Paris (Private #10)', 'rating': 5, 'price_inr': 5022.855}
+{'category_name': 'Fiction', 'title': 'We Love You, Charlie Freeman', 'rating': 5, 'price_inr': 5303.485000000001}
+{'category_name': 'Fiction', 'title': 'Thirst', 'rating': 5, 'price_inr': 1821.985}
+{'category_name': 'Fiction', 'title': 'The Murder That Never Was (Forensic Instincts #5)', 'rating': 3, 'price_inr': 5708.605}
+{'category_name': 'Fiction', 'title': 'Soumission', 'rating': 1, 'price_inr': 5285.55}
+{'category_name': 'Food and Drink', 'title': 'Mama Tried: Traditional Italian Cooking for the Screwed, Crude, Vegan, and Tattooed', 'rating': 4, 'price_inr': 1479.11}
+{'category_name': 'Food and Drink', 'title': 'Foolproof Preserving: A Guide to Small Batch Jams, Jellies, Pickles, Condiments, and More: A Foolproof Guide to Making Small Batch Jams, Jellies, Pickles, Condiments, and More', 'rating': 3, 'price_inr': 3219.86}
+{'category_name': 'Food and Drink', 'title': 'My Paris Kitchen: Recipes and Stories', 'rating': 2, 'price_inr': 3520.535}
+{'category_name': 'Food and Drink', 'title': 'The Pioneer Woman Cooks: Dinnertime: Comfort Classics, Freezer Food, 16-Minute Meals, and Other Delicious Ways to Solve Supper!', 'rating': 1, 'price_inr': 5951.254999999999}
+{'category_name': 'Food and Drink', 'title': 'Layered: Baking, Building, and Styling Spectacular Cakes', 'rating': 1, 'price_inr': 4231.605}
+{'category_name': 'Health', 'title': 'The Bulletproof Diet: Lose up to a Pound a Day, Reclaim Energy and Focus, Upgrade Your Life', 'rating': 3, 'price_inr': 5174.775}
+{'category_name': 'Historical Fiction', 'title': 'Tipping the Velvet', 'rating': 1, 'price_inr': 5669.570000000001}
+{'category_name': 'History', 'title': 'Sapiens: A Brief History of Humankind', 'rating': 5, 'price_inr': 5721.264999999999}
+{'category_name': 'History', 'title': 'Political Suicide: Missteps, Peccadilloes, Bad Calls, Backroom Hijinx, Sordid Pasts, Rotten Breaks, and Just Plain Dumb Mistakes in the Annals of American Politics', 'rating': 2, 'price_inr': 3827.54}
+{'category_name': 'History', 'title': 'Unbound: How Eight Technologies Made Us Human, Transformed Society, and Brought Our World to the Brink', 'rating': 1, 'price_inr': 2692.36}
+{'category_name': 'History', 'title': 'The Age of Genius: The Seventeenth Century and the Birth of the Modern Mind', 'rating': 1, 'price_inr': 2081.515}
+{'category_name': 'Horror', 'title': 'Security', 'rating': 2, 'price_inr': 4140.875}
+{'category_name': 'Music', 'title': 'Rip it Up and Start Again', 'rating': 5, 'price_inr': 3694.61}
+{'category_name': 'Music', 'title': 'Our Band Could Be Your Life: Scenes from the American Indie Underground, 1981-1991', 'rating': 3, 'price_inr': 6039.875}
+{'category_name': 'Music', 'title': 'How Music Works', 'rating': 2, 'price_inr': 3937.26}
+{'category_name': 'Mystery', 'title': 'Sharp Objects', 'rating': 4, 'price_inr': 5045.01}
+{'category_name': 'Mystery', 'title': 'The Past Never Ends', 'rating': 4, 'price_inr': 5960.75}
+{'category_name': 'Mystery', 'title': 'In a Dark, Dark Wood', 'rating': 1, 'price_inr': 2070.965}
+{'category_name': 'New Adult', 'title': 'Without Borders (Wanderlove #1)', 'rating': 2, 'price_inr': 4754.885}
+{'category_name': 'Nonfiction', 'title': 'Worlds Elsewhere: Journeys Around Shakespeare’s Globe', 'rating': 5, 'price_inr': 4251.65}
+{'category_name': 'Nonfiction', 'title': '#HigherSelfie: Wake Up Your Life. Free Your Soul. Find Your Tribe.', 'rating': 5, 'price_inr': 2438.105}
+{'category_name': 'Nonfiction', 'title': 'Unseen City: The Majesty of Pigeons, the Discreet Charm of Snails & Other Wonders of the Urban Wilderness', 'rating': 4, 'price_inr': 4660.99}
+{'category_name': 'Nonfiction', 'title': 'Spark Joy: An Illustrated Master Class on the Art of Organizing and Tidying Up', 'rating': 4, 'price_inr': 4413.065}
+{'category_name': 'Nonfiction', 'title': 'In the Country We Love: My Family Divided', 'rating': 4, 'price_inr': 2321.0}
+{'category_name': 'Nonfiction', 'title': 'The Five Love Languages: How to Express Heartfelt Commitment to Your Mate', 'rating': 3, 'price_inr': 3275.775}
+{'category_name': 'Nonfiction', 'title': 'Throwing Rocks at the Google Bus: How Growth Became the Enemy of Prosperity', 'rating': 3, 'price_inr': 3283.1600000000003}
+{'category_name': 'Nonfiction', 'title': 'The Life-Changing Magic of Tidying Up: The Japanese Art of Decluttering and Organizing', 'rating': 3, 'price_inr': 1769.235}
+{'category_name': 'Nonfiction', 'title': 'Reasons to Stay Alive', 'rating': 2, 'price_inr': 2786.255}
+{'category_name': 'Nonfiction', 'title': 'Reskilling America: Learning to Labor in the Twenty-First Century', 'rating': 2, 'price_inr': 2092.065}
+{'category_name': 'Nonfiction', 'title': 'The Gutsy Girl: Escapades for Your Life of Epic Adventure', 'rating': 1, 'price_inr': 3917.215}
+{'category_name': 'Nonfiction', 'title': 'The Electric Pencil: Drawings from Inside State Hospital No. 3', 'rating': 1, 'price_inr': 5914.33}
+{'category_name': 'Philosophy', 'title': "Sophie's World", 'rating': 5, 'price_inr': 1681.6699999999998}
+{'category_name': 'Philosophy', 'title': 'The Death of Humanity: and the Case for Life', 'rating': 4, 'price_inr': 6130.605}
+{'category_name': 'Poetry', 'title': "Shakespeare's Sonnets", 'rating': 4, 'price_inr': 2179.63}
+{'category_name': 'Poetry', 'title': 'Untitled Collection: Sabbath Poems 2014', 'rating': 4, 'price_inr': 1505.485}
+{'category_name': 'Poetry', 'title': 'A Light in the Attic', 'rating': 3, 'price_inr': 5461.735000000001}
+{'category_name': 'Poetry', 'title': 'Slow States of Collapse: Poems', 'rating': 3, 'price_inr': 6046.205}
+{'category_name': 'Poetry', 'title': "You can't bury them all: Poems", 'rating': 2, 'price_inr': 3547.965}
+{'category_name': 'Poetry', 'title': 'The Black Maria', 'rating': 1, 'price_inr': 5501.825}
+{'category_name': 'Poetry', 'title': 'Olio', 'rating': 1, 'price_inr': 2519.34}
+{'category_name': 'Politics', 'title': 'Libertarianism for Beginners', 'rating': 2, 'price_inr': 5415.315}
+{'category_name': 'Romance', 'title': 'Chase Me (Paris Nights #2)', 'rating': 5, 'price_inr': 2665.985}
+{'category_name': 'Romance', 'title': 'Black Dust', 'rating': 5, 'price_inr': 3642.915}
+{'category_name': 'Science', 'title': "The Most Perfect Thing: Inside (and Outside) a Bird's Egg", 'rating': 4, 'price_inr': 4532.28}
+{'category_name': 'Science Fiction', 'title': 'Join', 'rating': 5, 'price_inr': 3763.185}
+{'category_name': 'Science Fiction', 'title': 'Mesaerion: The Best Science Fiction Stories 1800-1849', 'rating': 1, 'price_inr': 3965.745}
+{'category_name': 'Self Help', 'title': 'Online Marketing for Busy Authors: A Step-By-Step Guide', 'rating': 1, 'price_inr': 4889.925}
+{'category_name': 'Sequential Art', 'title': "Scott Pilgrim's Precious Little Life (Scott Pilgrim #1)", 'rating': 5, 'price_inr': 5516.595}
+{'category_name': 'Sequential Art', 'title': 'Princess Jellyfish 2-in-1 Omnibus, Vol. 01 (Princess Jellyfish 2-in-1 Omnibus #1)', 'rating': 5, 'price_inr': 1435.855}
+{'category_name': 'Sequential Art', 'title': 'This One Summer', 'rating': 4, 'price_inr': 2056.195}
+{'category_name': 'Sequential Art', 'title': 'The Nameless City (The Nameless City #1)', 'rating': 4, 'price_inr': 4025.88}
+{'category_name': 'Sequential Art', 'title': 'Outcast, Vol. 1: A Darkness Surrounds Him (Outcast #1)', 'rating': 4, 'price_inr': 1628.9199999999998}
+{'category_name': 'Sequential Art', 'title': 'Rat Queens, Vol. 3: Demons (Rat Queens (Collected Editions) #11-15)', 'rating': 3, 'price_inr': 5317.2}
+{'category_name': 'Sequential Art', 'title': 'Patience', 'rating': 3, 'price_inr': 1071.88}
+{'category_name': 'Sequential Art', 'title': 'Lumberjanes, Vol. 1: Beware the Kitten Holy (Lumberjanes #1-4)', 'rating': 3, 'price_inr': 4811.855}
+{'category_name': 'Sequential Art', 'title': 'Saga, Volume 5 (Saga (Collected Editions) #5)', 'rating': 2, 'price_inr': 5384.72}
+{'category_name': 'Sequential Art', 'title': 'Lumberjanes, Vol. 2: Friendship to the Max (Lumberjanes #5-8)', 'rating': 2, 'price_inr': 4949.004999999999}
+{'category_name': 'Sequential Art', 'title': 'Lumberjanes Vol. 3: A Terrible Plan (Lumberjanes #9-12)', 'rating': 2, 'price_inr': 2101.5600000000004}
+{'category_name': 'Sequential Art', 'title': 'Tsubasa: WoRLD CHRoNiCLE 2 (Tsubasa WoRLD CHRoNiCLE #2)', 'rating': 1, 'price_inr': 1717.5400000000002}
+{'category_name': 'Sequential Art', 'title': 'Pop Gun War, Volume 1: Gift', 'rating': 1, 'price_inr': 2001.335}
+{'category_name': 'Sequential Art', 'title': 'orange: The Complete Collection 1 (orange: The Complete Collection #1)', 'rating': 1, 'price_inr': 5107.254999999999}
+{'category_name': 'Spirituality', 'title': 'The Four Agreements: A Practical Guide to Personal Freedom', 'rating': 5, 'price_inr': 1863.13}
+{'category_name': 'Spirituality', 'title': "The Activist's Tao Te Ching: Ancient Advice for a Modern Revolution", 'rating': 5, 'price_inr': 3401.32}
+{'category_name': 'Thriller', 'title': 'The Elephant Tree', 'rating': 5, 'price_inr': 2513.01}
+{'category_name': 'Thriller', 'title': 'Behind Closed Doors', 'rating': 4, 'price_inr': 5509.21}
+{'category_name': 'Thriller', 'title': 'In Her Wake', 'rating': 1, 'price_inr': 1354.62}
+{'category_name': 'Travel', 'title': "It's Only the Himalayas", 'rating': 2, 'price_inr': 4765.435}
+{'category_name': 'Young Adult', 'title': 'Set Me Free', 'rating': 5, 'price_inr': 1842.03}
+{'category_name': 'Young Adult', 'title': 'The Natural History of Us (The Fine Art of Pretending #2)', 'rating': 3, 'price_inr': 4770.71}
+{'category_name': 'Young Adult', 'title': 'Obsidian (Lux #1)', 'rating': 2, 'price_inr': 1567.73}
+{'category_name': 'Young Adult', 'title': 'The Requiem Red', 'rating': 1, 'price_inr': 2389.575}
+
+=== pandas parity check ===
+
+Q1 via pd.read_sql:
+                                               title  price_inr  rating
+0                                           Patience   1071.880       3
+1                                        In Her Wake   1354.620       1
+2   Princess Between Worlds (Wide-Awake Princess #5)   1407.370       5
+3  Princess Jellyfish 2-in-1 Omnibus, Vol. 01 (Pr...   1435.855       5
+4     Starving Hearts (Triangular Trade Trilogy, #1)   1475.945       2
+
+Q5 via SQL JOIN (pd.read_sql):
+  category_name  ... price_inr
+0           Art  ...  4660.990
+1      Business  ...  3517.370
+2     Childrens  ...  5764.520
+3     Childrens  ...  3891.895
+4     Childrens  ...  5921.715
+
+[5 rows x 4 columns]
+
+Q5 via pd.merge (in-memory, no SQL):
+  category_name  ... price_inr
+0           Art  ...  4660.990
+1      Business  ...  3517.370
+2     Childrens  ...  5764.520
+3     Childrens  ...  3891.895
+4     Childrens  ...  5921.715
+
+[5 rows x 4 columns]
+
+SQL JOIN output matches pd.merge output: True
