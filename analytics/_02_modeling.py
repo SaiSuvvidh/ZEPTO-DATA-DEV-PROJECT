@@ -24,6 +24,9 @@ from sklearn.metrics import (
     recall_score, f1_score, roc_curve, roc_auc_score
 )
 
+from imblearn.pipeline import Pipeline as ImbPipeline
+from imblearn.over_sampling import SMOTE
+
 CSV_PATH = "analytics/titanic.csv"
 NUMERIC_FEATURES = ["age", "fare", "sibsp", "parch", "pclass"]
 CATEGORICAL_FEATURES = ["sex", "embarked"]
@@ -193,6 +196,52 @@ def evaluate_models(models, X_test, y_test):
     return results, comparison_df
 
 
+def imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test):
+    print(f"\n=== Class balance in training set ===")
+    print(y_train.value_counts(normalize=True))
+
+    variants = {}
+
+    # (a) Baseline -- no imbalance handling
+    variants["Baseline"] = Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier(random_state=42)),
+    ])
+
+    # (b) class_weight='balanced' -- reweights the loss function, no data changes
+    variants["class_weight=balanced"] = Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier(random_state=42, class_weight="balanced")),
+    ])
+
+    # (c) SMOTE -- generates synthetic minority-class samples, but ONLY on the
+    # training fold. Using imblearn's Pipeline (not sklearn's) is what makes
+    # this safe: imblearn's Pipeline only applies the sampler during .fit(),
+    # never during .predict()/.transform(), so test data is never touched by
+    # SMOTE and no synthetic leakage into evaluation occurs.
+    variants["SMOTE"] = ImbPipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("smote", SMOTE(random_state=42)),
+        ("classifier", RandomForestClassifier(random_state=42)),
+    ])
+
+    results = {}
+    for name, pipeline in variants.items():
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        results[name] = {"precision": prec, "recall": rec, "f1": f1}
+        print(f"\n{name}: Precision={prec:.3f}, Recall={rec:.3f}, F1={f1:.3f}")
+
+    comparison_df = pd.DataFrame(results).T
+    print("\n=== Imbalance handling comparison ===")
+    print(comparison_df.round(3))
+
+    return comparison_df
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
@@ -200,14 +249,12 @@ def main():
     preprocessor = build_preprocessor()
     models = build_models(preprocessor)
     models = train_models(models, X_train, y_train)
-    
-    # Passing only 'models' as the preprocessor is accessed from inside the pipeline 
-    # to ensure feature names are successfully extracted from the fitted state.
-    plot_decision_tree(models)
+    plot_decision_tree(models) # Fixed argument pass here
 
     eval_results, comparison_df = evaluate_models(models, X_test, y_test)
+    imbalance_df = imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test)
 
-    return X_train, X_test, y_train, y_test, models, eval_results, comparison_df
+    return X_train, X_test, y_train, y_test, models, eval_results, comparison_df, imbalance_df
 
 
 if __name__ == "__main__":
