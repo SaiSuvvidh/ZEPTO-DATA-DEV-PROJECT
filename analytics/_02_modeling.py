@@ -79,21 +79,73 @@ def build_preprocessor():
     return preprocessor
 
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.ensemble import RandomForestClassifier
+import matplotlib.pyplot as plt
+
+
+def build_models(preprocessor):
+    models = {
+        "Logistic Regression": Pipeline(steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", LogisticRegression(max_iter=1000, random_state=42)),
+        ]),
+        "Decision Tree": Pipeline(steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", DecisionTreeClassifier(random_state=42, max_depth=5)),
+        ]),
+        "Random Forest": Pipeline(steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", RandomForestClassifier(random_state=42)),
+        ]),
+    }
+    return models
+
+
+def train_models(models, X_train, y_train):
+    for name, pipeline in models.items():
+        pipeline.fit(X_train, y_train)
+        print(f"Trained: {name}")
+    return models
+
+
+def plot_decision_tree(models, preprocessor):
+    dt_pipeline = models["Decision Tree"]
+    dt_model = dt_pipeline.named_steps["classifier"]
+    feature_names = preprocessor.get_feature_names_out()
+
+    plt.figure(figsize=(20, 10))
+    plot_tree(
+        dt_model,
+        feature_names=feature_names,
+        class_names=["Did not survive", "Survived"],
+        filled=True,
+        max_depth=3,  # cap displayed depth for readability, tree itself still trained at max_depth=5
+        fontsize=8,
+    )
+    plt.title("Decision Tree (top 3 levels shown)")
+    plt.tight_layout()
+    plt.savefig("analytics/decision_tree.png")
+    plt.close()
+    print("\nSaved decision_tree.png")
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
 
     preprocessor = build_preprocessor()
 
-    # Fit-on-train-only demonstration: fit_transform on train, transform-only on test
-    X_train_transformed = preprocessor.fit_transform(X_train)
-    X_test_transformed = preprocessor.transform(X_test)  # NOT fit -- transform only
+    # note: each model pipeline below builds its own fresh copy of the
+    # ColumnTransformer internally (sklearn Pipelines fit independently),
+    # so reusing the same `preprocessor` object across three Pipelines is
+    # safe -- each .fit() call refits it on that pipeline's own train data.
+    models = build_models(preprocessor)
+    models = train_models(models, X_train, y_train)
+    plot_decision_tree(models, preprocessor)
 
-    print(f"\nX_train_transformed shape: {X_train_transformed.shape}")
-    print(f"X_test_transformed shape: {X_test_transformed.shape}")
-    print(f"Feature names out: {preprocessor.get_feature_names_out()}")
-
-    return X_train, X_test, y_train, y_test, preprocessor
+    return X_train, X_test, y_train, y_test, models
 
 
 if __name__ == "__main__":
