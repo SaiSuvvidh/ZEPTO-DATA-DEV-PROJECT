@@ -11,6 +11,7 @@ structurally enforces the fit-on-train/transform-on-test separation.
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import joblib
 
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.compose import ColumnTransformer
@@ -347,6 +348,34 @@ def regression_side_task(df):
     return {"mae": mae, "rmse": rmse, "r2": r2, "adj_r2": adj_r2}
 
 
+def final_comparison(comparison_df, regression_results):
+    print("\n=== FINAL MODEL COMPARISON ===")
+    print("\n-- Classification models --")
+    print(comparison_df.round(3))
+
+    print("\n-- Regression model (fare prediction) --")
+    reg_df = pd.DataFrame([regression_results]).round(3)
+    reg_df.index = ["Linear Regression"]
+    print(reg_df)
+
+    return comparison_df, reg_df
+
+
+def save_pipeline(best_pipeline, X_test, y_test):
+    joblib.dump(best_pipeline, "analytics/best_pipeline.joblib")
+    print("\nSaved analytics/best_pipeline.joblib")
+
+    # Reload and confirm it predicts correctly on raw (unpreprocessed) input
+    reloaded_pipeline = joblib.load("analytics/best_pipeline.joblib")
+    sample_raw = X_test.iloc[:5]  # raw rows, exactly as they'd come in unprocessed
+    original_preds = best_pipeline.predict(sample_raw)
+    reloaded_preds = reloaded_pipeline.predict(sample_raw)
+
+    print(f"\nOriginal pipeline predictions:  {original_preds}")
+    print(f"Reloaded pipeline predictions:  {reloaded_preds}")
+    print(f"Predictions match: {(original_preds == reloaded_preds).all()}")
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
@@ -360,9 +389,12 @@ def main():
     imbalance_df = imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test)
     best_rf_pipeline, grid_search = tune_random_forest(preprocessor, X_train, y_train)
     regression_results = regression_side_task(df)
+    final_class_df, final_reg_df = final_comparison(comparison_df, regression_results)
+    save_pipeline(best_rf_pipeline, X_test, y_test)
 
-    return (X_train, X_test, y_train, y_test, models, eval_results,
-            comparison_df, imbalance_df, best_rf_pipeline, grid_search, regression_results)
+    return (X_train, X_test, y_train, y_test, models, eval_results, comparison_df,
+            imbalance_df, best_rf_pipeline, grid_search, regression_results,
+            final_class_df, final_reg_df)
 
 
 if __name__ == "__main__":
