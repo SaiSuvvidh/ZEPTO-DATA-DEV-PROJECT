@@ -117,12 +117,79 @@ def univariate_analysis(df):
     }
 
 
+def bivariate_analysis(df):
+    # --- Survival rate by sex (boolean masking) ---
+    male_mask = df["sex"] == "male"
+    female_mask = df["sex"] == "female"
+    survival_by_sex = {
+        "male": df.loc[male_mask, "survived"].mean(),
+        "female": df.loc[female_mask, "survived"].mean(),
+    }
+    print("\n=== Survival rate by sex ===")
+    for k, v in survival_by_sex.items():
+        print(f"{k}: {v:.3f}")
+
+    # --- Survival rate by pclass (boolean masking) ---
+    survival_by_pclass = {}
+    for pc in sorted(df["pclass"].unique()):
+        mask = df["pclass"] == pc
+        survival_by_pclass[pc] = df.loc[mask, "survived"].mean()
+    print("\n=== Survival rate by pclass ===")
+    for k, v in survival_by_pclass.items():
+        print(f"class {k}: {v:.3f}")
+
+    # --- Survival rate by sex AND pclass combined (& masking) ---
+    print("\n=== Survival rate by sex + pclass ===")
+    survival_by_sex_pclass = {}
+    for sex_val, sex_mask in [("male", male_mask), ("female", female_mask)]:
+        for pc in sorted(df["pclass"].unique()):
+            combined_mask = sex_mask & (df["pclass"] == pc)
+            rate = df.loc[combined_mask, "survived"].mean()
+            survival_by_sex_pclass[(sex_val, pc)] = rate
+            print(f"{sex_val}, class {pc}: {rate:.3f}")
+
+    # --- 6x6 correlation matrix (exact columns specified) ---
+    corr_cols = ["survived", "pclass", "age", "sibsp", "parch", "fare"]
+    corr_matrix = df[corr_cols].corr()
+
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", square=True)
+    plt.title("Correlation Matrix (6 numeric columns)")
+    plt.tight_layout()
+    plt.savefig("analytics/correlation_heatmap.png")
+    plt.close()
+    print("\nSaved correlation_heatmap.png")
+    print("\n=== Correlation matrix ===")
+    print(corr_matrix)
+
+    # --- Top 2 strongest off-diagonal correlations ---
+    corr_pairs = []
+    for i, col_i in enumerate(corr_cols):
+        for j, col_j in enumerate(corr_cols):
+            if i < j:  # upper triangle only, avoid duplicates/diagonal
+                corr_pairs.append((col_i, col_j, corr_matrix.loc[col_i, col_j]))
+    corr_pairs.sort(key=lambda x: abs(x[2]), reverse=True)
+    top_2 = corr_pairs[:2]
+    print("\n=== Top 2 strongest correlations ===")
+    for a, b, val in top_2:
+        print(f"{a} <-> {b}: {val:.3f}")
+
+    return {
+        "survival_by_sex": survival_by_sex,
+        "survival_by_pclass": survival_by_pclass,
+        "survival_by_sex_pclass": survival_by_sex_pclass,
+        "corr_matrix": corr_matrix,
+        "top_2_correlations": top_2,
+    }
+
+
 def main():
     df = load_and_save()
     missing_pct = profile(df)
     df = clean_missing(df)
     univariate_results = univariate_analysis(df)
-    return df, missing_pct, univariate_results
+    bivariate_results = bivariate_analysis(df)
+    return df, missing_pct, univariate_results, bivariate_results
 
 
 if __name__ == "__main__":
