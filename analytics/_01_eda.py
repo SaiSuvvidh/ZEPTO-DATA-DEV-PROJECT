@@ -62,11 +62,67 @@ def clean_missing(df):
     return df
 
 
+def univariate_analysis(df):
+    # --- Histograms + box plots ---
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    axes[0, 0].hist(df["age"], bins=30, edgecolor="black")
+    axes[0, 0].set_title("Age Distribution")
+    axes[0, 1].boxplot(df["age"], vert=False)
+    axes[0, 1].set_title("Age Box Plot")
+    axes[1, 0].hist(df["fare"], bins=30, edgecolor="black")
+    axes[1, 0].set_title("Fare Distribution")
+    axes[1, 1].boxplot(df["fare"], vert=False)
+    axes[1, 1].set_title("Fare Box Plot")
+    plt.tight_layout()
+    plt.savefig("analytics/univariate_age_fare.png")
+    plt.close()
+    print("\nSaved univariate_age_fare.png")
+
+    # --- IQR outlier counts ---
+    def iqr_outlier_count(series):
+        q1, q3 = series.quantile(0.25), series.quantile(0.75)
+        iqr = q3 - q1
+        lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+        return ((series < lower) | (series > upper)).sum(), lower, upper
+
+    age_outliers, age_lo, age_hi = iqr_outlier_count(df["age"])
+    fare_outliers, fare_lo, fare_hi = iqr_outlier_count(df["fare"])
+    print(f"\nAge IQR outliers: {age_outliers} (bounds: [{age_lo:.2f}, {age_hi:.2f}])")
+    print(f"Fare IQR outliers: {fare_outliers} (bounds: [{fare_lo:.2f}, {fare_hi:.2f}])")
+
+    # --- fare mean/median/mode + skew ---
+    fare_mean = df["fare"].mean()
+    fare_median = df["fare"].median()
+    fare_mode = df["fare"].mode().iloc[0]
+    print(f"\nFare: mean={fare_mean:.2f}, median={fare_median:.2f}, mode={fare_mode:.2f}")
+
+    # mean > median > mode is the classic right-skew signature: a few very
+    # high fares (1st-class, high-value tickets) pull the mean up further
+    # than the median, while the mode sits at the cheapest/most common fare
+    if fare_mean > fare_median > fare_mode:
+        skew_conclusion = "right-skewed (mean > median > mode) -- a small number of high-value fares pull the mean upward"
+    elif fare_mean < fare_median < fare_mode:
+        skew_conclusion = "left-skewed (mean < median < mode)"
+    else:
+        skew_conclusion = "approximately symmetric (mean ≈ median ≈ mode)"
+    print(f"Fare distribution: {skew_conclusion}")
+
+    return {
+        "age_outliers": age_outliers,
+        "fare_outliers": fare_outliers,
+        "fare_mean": fare_mean,
+        "fare_median": fare_median,
+        "fare_mode": fare_mode,
+        "skew_conclusion": skew_conclusion,
+    }
+
+
 def main():
     df = load_and_save()
     missing_pct = profile(df)
     df = clean_missing(df)
-    return df, missing_pct
+    univariate_results = univariate_analysis(df)
+    return df, missing_pct, univariate_results
 
 
 if __name__ == "__main__":
