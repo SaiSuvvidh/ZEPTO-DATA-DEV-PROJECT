@@ -10,8 +10,14 @@ structurally enforces the fit-on-train/transform-on-test separation.
 """
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 CSV_PATH = "analytics/titanic.csv"
+NUMERIC_FEATURES = ["age", "fare", "sibsp", "parch", "pclass"]
+CATEGORICAL_FEATURES = ["sex", "embarked"]
 
 
 def load_data():
@@ -47,10 +53,47 @@ def stratified_split(df):
     return X_train, X_test, y_train, y_test
 
 
+def build_preprocessor():
+    # Numeric: median-impute (robust to fare's right-skew/outliers from
+    # Part A) then scale -- both steps fit on train only when used inside
+    # a Pipeline's .fit(X_train, y_train) call.
+    numeric_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()),
+    ])
+
+    # Categorical: most-frequent-impute (handles embarked's 2 missing
+    # values) then one-hot encode. handle_unknown="ignore" guards against
+    # a category appearing in test but not train (won't happen here given
+    # dataset size, but is good practice).
+    categorical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore")),
+    ])
+
+    preprocessor = ColumnTransformer(transformers=[
+        ("num", numeric_transformer, NUMERIC_FEATURES),
+        ("cat", categorical_transformer, CATEGORICAL_FEATURES),
+    ])
+
+    return preprocessor
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
-    return X_train, X_test, y_train, y_test
+
+    preprocessor = build_preprocessor()
+
+    # Fit-on-train-only demonstration: fit_transform on train, transform-only on test
+    X_train_transformed = preprocessor.fit_transform(X_train)
+    X_test_transformed = preprocessor.transform(X_test)  # NOT fit -- transform only
+
+    print(f"\nX_train_transformed shape: {X_train_transformed.shape}")
+    print(f"X_test_transformed shape: {X_test_transformed.shape}")
+    print(f"Feature names out: {preprocessor.get_feature_names_out()}")
+
+    return X_train, X_test, y_train, y_test, preprocessor
 
 
 if __name__ == "__main__":
