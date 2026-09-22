@@ -9,11 +9,20 @@ choice here, and doing it via ColumnTransformer inside a Pipeline is what
 structurally enforces the fit-on-train/transform-on-test separation.
 """
 import pandas as pd
+import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    confusion_matrix, accuracy_score, precision_score,
+    recall_score, f1_score, roc_curve, roc_auc_score
+)
 
 CSV_PATH = "analytics/titanic.csv"
 NUMERIC_FEATURES = ["age", "fare", "sibsp", "parch", "pclass"]
@@ -79,12 +88,6 @@ def build_preprocessor():
     return preprocessor
 
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.ensemble import RandomForestClassifier
-import matplotlib.pyplot as plt
-
-
 def build_models(preprocessor):
     models = {
         "Logistic Regression": Pipeline(steps=[
@@ -110,10 +113,13 @@ def train_models(models, X_train, y_train):
     return models
 
 
-def plot_decision_tree(models, preprocessor):
+def plot_decision_tree(models):
     dt_pipeline = models["Decision Tree"]
     dt_model = dt_pipeline.named_steps["classifier"]
-    feature_names = preprocessor.get_feature_names_out()
+    
+    # Extract the fitted preprocessor directly from the pipeline to avoid NotFittedError
+    fitted_preprocessor = dt_pipeline.named_steps["preprocessor"]
+    feature_names = fitted_preprocessor.get_feature_names_out()
 
     plt.figure(figsize=(20, 10))
     plot_tree(
@@ -131,21 +137,77 @@ def plot_decision_tree(models, preprocessor):
     print("\nSaved decision_tree.png")
 
 
+def evaluate_models(models, X_test, y_test):
+    results = {}
+
+    plt.figure(figsize=(8, 6))
+
+    for name, pipeline in models.items():
+        y_pred = pipeline.predict(X_test)
+        y_proba = pipeline.predict_proba(X_test)[:, 1]  # probability of class 1 (survived)
+
+        cm = confusion_matrix(y_test, y_pred)
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_proba)
+
+        fpr, tpr, _ = roc_curve(y_test, y_proba)
+        plt.plot(fpr, tpr, label=f"{name} (AUC={auc:.3f})")
+
+        results[name] = {
+            "confusion_matrix": cm,
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
+            "f1": f1,
+            "auc": auc,
+        }
+
+        print(f"\n=== {name} ===")
+        print(f"Confusion matrix:\n{cm}")
+        print(f"Accuracy: {acc:.3f} | Precision: {prec:.3f} | Recall: {rec:.3f} | F1: {f1:.3f} | AUC: {auc:.3f}")
+
+    plt.plot([0, 1], [0, 1], "k--", label="Random baseline")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curves — All Three Classifiers")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("analytics/roc_curves.png")
+    plt.close()
+    print("\nSaved roc_curves.png")
+
+    # Comparison table
+    comparison_df = pd.DataFrame({
+        name: {
+            "Accuracy": r["accuracy"], "Precision": r["precision"],
+            "Recall": r["recall"], "F1": r["f1"], "AUC": r["auc"],
+        }
+        for name, r in results.items()
+    }).T
+    print("\n=== Comparison table ===")
+    print(comparison_df.round(3))
+
+    return results, comparison_df
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
 
     preprocessor = build_preprocessor()
-
-    # note: each model pipeline below builds its own fresh copy of the
-    # ColumnTransformer internally (sklearn Pipelines fit independently),
-    # so reusing the same `preprocessor` object across three Pipelines is
-    # safe -- each .fit() call refits it on that pipeline's own train data.
     models = build_models(preprocessor)
     models = train_models(models, X_train, y_train)
-    plot_decision_tree(models, preprocessor)
+    
+    # Passing only 'models' as the preprocessor is accessed from inside the pipeline 
+    # to ensure feature names are successfully extracted from the fitted state.
+    plot_decision_tree(models)
 
-    return X_train, X_test, y_train, y_test, models
+    eval_results, comparison_df = evaluate_models(models, X_test, y_test)
+
+    return X_train, X_test, y_train, y_test, models, eval_results, comparison_df
 
 
 if __name__ == "__main__":
