@@ -11,7 +11,7 @@ structurally enforces the fit-on-train/transform-on-test separation.
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -242,6 +242,36 @@ def imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test):
     return comparison_df
 
 
+def tune_random_forest(preprocessor, X_train, y_train):
+    pipeline = Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        # oob_score=True must be set here at construction time -- oob_score_
+        # is only populated when this flag was True when the estimator was
+        # built, not if set afterward.
+        ("classifier", RandomForestClassifier(random_state=42, oob_score=True, bootstrap=True)),
+    ])
+
+    param_grid = {
+        "classifier__n_estimators": [100, 200, 300],
+        "classifier__max_depth": [5, 10, None],
+        "classifier__max_features": ["sqrt", "log2"],
+    }
+
+    grid_search = GridSearchCV(
+        pipeline, param_grid, cv=5, scoring="f1", n_jobs=-1
+    )
+    grid_search.fit(X_train, y_train)
+
+    best_pipeline = grid_search.best_estimator_
+    best_rf = best_pipeline.named_steps["classifier"]
+
+    print(f"\nBest params: {grid_search.best_params_}")
+    print(f"Best CV F1 score: {grid_search.best_score_:.3f}")
+    print(f"OOB score of best estimator: {best_rf.oob_score_:.3f}")
+
+    return best_pipeline, grid_search
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
@@ -249,12 +279,14 @@ def main():
     preprocessor = build_preprocessor()
     models = build_models(preprocessor)
     models = train_models(models, X_train, y_train)
-    plot_decision_tree(models) # Fixed argument pass here
+    plot_decision_tree(models) # FIXED: Removed the redundant 'preprocessor' argument
 
     eval_results, comparison_df = evaluate_models(models, X_test, y_test)
     imbalance_df = imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test)
+    best_rf_pipeline, grid_search = tune_random_forest(preprocessor, X_train, y_train)
 
-    return X_train, X_test, y_train, y_test, models, eval_results, comparison_df, imbalance_df
+    return (X_train, X_test, y_train, y_test, models, eval_results,
+            comparison_df, imbalance_df, best_rf_pipeline, grid_search)
 
 
 if __name__ == "__main__":
