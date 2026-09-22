@@ -9,6 +9,7 @@ choice here, and doing it via ColumnTransformer inside a Pipeline is what
 structurally enforces the fit-on-train/transform-on-test separation.
 """
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -16,12 +17,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     confusion_matrix, accuracy_score, precision_score,
-    recall_score, f1_score, roc_curve, roc_auc_score
+    recall_score, f1_score, roc_curve, roc_auc_score,
+    mean_absolute_error, mean_squared_error, r2_score
 )
 
 from imblearn.pipeline import Pipeline as ImbPipeline
@@ -272,6 +274,79 @@ def tune_random_forest(preprocessor, X_train, y_train):
     return best_pipeline, grid_search
 
 
+def regression_side_task(df):
+    # Predict fare from other available features (excluding fare itself
+    # and the same leakage/sparse columns dropped in Step 7)
+    drop_cols = ["alive", "deck", "embark_town", "class", "who", "adult_male", "alone", "fare"]
+    X = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    y = df["fare"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    # Reuse the same style of preprocessing as classification, minus fare
+    # itself from the numeric feature list (since it's now the target)
+    numeric_features = ["age", "sibsp", "parch", "pclass"]
+    categorical_features = ["sex", "embarked"]
+
+    preprocessor = ColumnTransformer(transformers=[
+        ("num", Pipeline([
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]), numeric_features),
+        ("cat", Pipeline([
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("encoder", OneHotEncoder(handle_unknown="ignore")),
+        ]), categorical_features),
+    ])
+
+    reg_pipeline = Pipeline(steps=[
+        ("preprocessor", preprocessor),
+        ("regressor", LinearRegression()),
+    ])
+    reg_pipeline.fit(X_train, y_train)
+    y_pred = reg_pipeline.predict(X_test)
+
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    r2 = r2_score(y_test, y_pred)
+
+    n = len(y_test)
+    p = X_test.shape[1]  # number of predictors (pre-encoding count is a
+                          # reasonable, commonly-used approximation here;
+                          # using post-encoding column count is also valid,
+                          # this is a documented modeling choice)
+    adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+
+    print(f"\n=== Regression: predicting fare ===")
+    print(f"MAE: {mae:.3f} | RMSE: {rmse:.3f} | R²: {r2:.3f} | Adjusted R²: {adj_r2:.3f}")
+
+    # Residual plot
+    residuals = y_test - y_pred
+    plt.figure(figsize=(8, 5))
+    plt.scatter(y_pred, residuals, alpha=0.6)
+    plt.axhline(y=0, color="red", linestyle="--")
+    plt.xlabel("Predicted Fare")
+    plt.ylabel("Residuals")
+    plt.title("Residual Plot — Fare Prediction")
+    plt.tight_layout()
+    plt.savefig("analytics/regression_residuals.png")
+    plt.close()
+    print("\nSaved regression_residuals.png")
+
+    # Heteroscedasticity check: residual spread should stay roughly constant
+    # across predicted values if homoscedastic; a funnel/cone shape (spread
+    # widening as predicted fare increases) indicates heteroscedasticity.
+    # Fare is heavily right-skewed (per Part A), so this is very likely to
+    # show a funnel pattern -- look at the saved plot to confirm/deny.
+    print("Check regression_residuals.png: if residual spread visibly widens "
+          "as predicted fare increases (funnel shape), that indicates "
+          "heteroscedasticity -- likely here given fare's right-skew from Part A.")
+
+    return {"mae": mae, "rmse": rmse, "r2": r2, "adj_r2": adj_r2}
+
+
 def main():
     df = load_data()
     X_train, X_test, y_train, y_test = stratified_split(df)
@@ -279,14 +354,15 @@ def main():
     preprocessor = build_preprocessor()
     models = build_models(preprocessor)
     models = train_models(models, X_train, y_train)
-    plot_decision_tree(models) # FIXED: Removed the redundant 'preprocessor' argument
+    plot_decision_tree(models) # FIXED: removed preprocessor argument
 
     eval_results, comparison_df = evaluate_models(models, X_test, y_test)
     imbalance_df = imbalance_comparison(preprocessor, X_train, X_test, y_train, y_test)
     best_rf_pipeline, grid_search = tune_random_forest(preprocessor, X_train, y_train)
+    regression_results = regression_side_task(df)
 
     return (X_train, X_test, y_train, y_test, models, eval_results,
-            comparison_df, imbalance_df, best_rf_pipeline, grid_search)
+            comparison_df, imbalance_df, best_rf_pipeline, grid_search, regression_results)
 
 
 if __name__ == "__main__":
