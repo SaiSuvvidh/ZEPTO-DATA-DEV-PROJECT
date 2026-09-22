@@ -256,6 +256,38 @@ def multivariate_analysis(df):
     return interpretations
 
 
+from sklearn.preprocessing import StandardScaler
+
+
+def zscore_check(df):
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(df[["age", "fare"]])
+
+    print("\n=== Before standardization ===")
+    print(df[["age", "fare"]].agg(["mean", "std"]))
+
+    scaled_df = pd.DataFrame(scaled, columns=["age_scaled", "fare_scaled"])
+    print("\n=== After standardization (z-score) ===")
+    print(scaled_df.agg(["mean", "std"]))
+
+    # Visual before/after
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    axes[0, 0].hist(df["age"], bins=30, edgecolor="black")
+    axes[0, 0].set_title("Age - Before")
+    axes[0, 1].hist(scaled_df["age_scaled"], bins=30, edgecolor="black")
+    axes[0, 1].set_title("Age - After (z-score)")
+    axes[1, 0].hist(df["fare"], bins=30, edgecolor="black")
+    axes[1, 0].set_title("Fare - Before")
+    axes[1, 1].hist(scaled_df["fare_scaled"], bins=30, edgecolor="black")
+    axes[1, 1].set_title("Fare - After (z-score)")
+    plt.tight_layout()
+    plt.savefig("analytics/zscore_before_after.png")
+    plt.close()
+    print("\nSaved zscore_before_after.png")
+
+    return scaled_df
+
+
 def main():
     df = load_and_save()
     missing_pct = profile(df)
@@ -263,7 +295,8 @@ def main():
     univariate_results = univariate_analysis(df)
     bivariate_results = bivariate_analysis(df)
     multivariate_results = multivariate_analysis(df)
-    return df, missing_pct, univariate_results, bivariate_results, multivariate_results
+    zscore_results = zscore_check(df)
+    return df, missing_pct, univariate_results, bivariate_results, multivariate_results, zscore_results
 
 
 if __name__ == "__main__":
