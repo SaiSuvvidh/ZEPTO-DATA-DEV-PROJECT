@@ -1,6 +1,6 @@
 """
 Cleans raw_books.csv into typed columns:
-  price_gbp   float   (strip '£')
+  price_gbp   float   (extracted via regex, currency-symbol-agnostic)
   rating      int     (word -> 1-5)
   in_stock    bool    (from availability text)
   price_inr   float   (price_gbp * 105.50, fixed project-defined constant)
@@ -12,8 +12,16 @@ failure signals a genuinely corrupt/unexpected row rather than normal
 missing data -- imputing a fabricated price/rating for a bad scrape would
 misrepresent that book, whereas dropping a handful of rows out of ~100
 has negligible effect on meeting the >=60-row requirement.
+
+Rows dropped for: unparseable price/rating/availability, OR category equal
+to "Add a comment" -- a books.toscrape.com breadcrumb-generator artifact
+present on a subset of pages (confirmed via direct inspection) rather than
+a real category, so treated the same as any other malformed field.
 """
+import re
 import pandas as pd
+
+INVALID_CATEGORIES = {"Add a comment"}  # site breadcrumb-generator artifact, not a real category
 
 GBP_TO_INR = 105.50  # fixed project-defined constant, not a live rate
 
@@ -24,10 +32,10 @@ OUTPUT_CSV = "data_pipeline/clean_books.csv"
 
 
 def parse_price(raw: str):
-    try:
-        return float(raw.replace("£", "").strip())
-    except (ValueError, AttributeError):
+    if raw is None:
         return None
+    match = re.search(r"[\d.]+", str(raw))  # currency-symbol-agnostic
+    return float(match.group()) if match else None
 
 
 def parse_rating(raw: str):
@@ -46,14 +54,20 @@ def main():
     df["price_gbp"] = df["price_raw"].apply(parse_price)
     df["rating"] = df["star_rating_raw"].apply(parse_rating)
     df["in_stock"] = df["availability_raw"].apply(parse_in_stock)
+    df["category"] = df["category"].apply(
+        lambda c: None if c in INVALID_CATEGORIES else c
+    )
 
     before = len(df)
-    bad_rows = df[df["price_gbp"].isna() | df["rating"].isna() | df["in_stock"].isna()]
+    bad_rows = df[
+        df["price_gbp"].isna() | df["rating"].isna()
+        | df["in_stock"].isna() | df["category"].isna()
+    ]
     if len(bad_rows) > 0:
         print(f"Dropping {len(bad_rows)} unparseable rows:")
-        print(bad_rows[["title", "price_raw", "star_rating_raw", "availability_raw"]])
+        print(bad_rows[["title", "price_raw", "star_rating_raw", "availability_raw", "category"]])
 
-    df = df.dropna(subset=["price_gbp", "rating", "in_stock"]).copy()
+    df = df.dropna(subset=["price_gbp", "rating", "in_stock", "category"]).copy()
     df["rating"] = df["rating"].astype(int)
     df["in_stock"] = df["in_stock"].astype(bool)
     df["price_inr"] = df["price_gbp"] * GBP_TO_INR
