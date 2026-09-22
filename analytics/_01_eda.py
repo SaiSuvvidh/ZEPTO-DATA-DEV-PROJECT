@@ -182,6 +182,79 @@ def bivariate_analysis(df):
         "top_2_correlations": top_2,
     }
 
+def multivariate_analysis(df):
+    interpretations = {}
+
+    # --- Chart 1: grouped bar — survival rate by sex + pclass ---
+    plt.figure(figsize=(7, 5))
+    sns.barplot(data=df, x="pclass", y="survived", hue="sex", errorbar=None)
+    plt.title("Survival Rate by Class and Sex")
+    plt.ylabel("Survival Rate")
+    plt.tight_layout()
+    plt.savefig("analytics/story_1_survival_by_class_sex.png")
+    plt.close()
+    interpretations["chart_1"] = (
+        "Survival rate is overwhelmingly driven by sex first, class second: women "
+        "survived at far higher rates than men in every class, but within each sex, "
+        "survival still drops sharply from 1st to 3rd class. This suggests the "
+        "'women and children first' evacuation policy dominated, with class acting "
+        "as a secondary factor -- likely via cabin location and proximity to lifeboats."
+    )
+
+    # --- Chart 2: box plot — age distribution by survival, split by pclass ---
+    plt.figure(figsize=(8, 5))
+    sns.boxplot(data=df, x="pclass", y="age", hue="survived")
+    plt.title("Age Distribution by Class and Survival")
+    plt.tight_layout()
+    plt.savefig("analytics/story_2_age_by_class_survival.png")
+    plt.close()
+    interpretations["chart_2"] = (
+        "Within each class, survivors and non-survivors have broadly similar age "
+        "medians, meaning age alone doesn't cleanly separate survival outcomes once "
+        "class is controlled for. The main visible age effect is at the low end: "
+        "young children show a higher survival skew in every class, consistent with "
+        "the 'children first' component of the evacuation policy."
+    )
+
+    # --- Chart 3: scatter — fare vs age, colored by survival ---
+    plt.figure(figsize=(8, 5))
+    sns.scatterplot(data=df, x="age", y="fare", hue="survived", alpha=0.6)
+    plt.title("Fare vs Age, Colored by Survival")
+    plt.tight_layout()
+    plt.savefig("analytics/story_3_fare_vs_age_survival.png")
+    plt.close()
+    interpretations["chart_3"] = (
+        "Survivors (orange) are visibly denser at higher fare values, reinforcing "
+        "that fare (a proxy for class and cabin location) mattered more than age for "
+        "survival -- there's no clear age band that separates survivors from "
+        "non-survivors, but there's a clear vertical fare band above which survival "
+        "becomes noticeably more common."
+    )
+
+    # --- Chart 4: bar — survival rate by family size (sibsp + parch) ---
+    df["family_size"] = df["sibsp"] + df["parch"]
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=df, x="family_size", y="survived", errorbar=None)
+    plt.title("Survival Rate by Family Size (sibsp + parch)")
+    plt.ylabel("Survival Rate")
+    plt.tight_layout()
+    plt.savefig("analytics/story_4_survival_by_family_size.png")
+    plt.close()
+    interpretations["chart_4"] = (
+        "Survival rate rises from traveling completely alone (family_size=0) to "
+        "small families (1-3), then drops sharply for large families (4+). This "
+        "suggests a 'sweet spot': solo travelers may have been slower to be helped "
+        "into lifeboats, while very large families likely struggled to stay together "
+        "and evacuate as a unit in the chaos, whereas small families could coordinate "
+        "quickly without being logistically unwieldy."
+    )
+
+    print("\n=== Multivariate data story: chart interpretations ===")
+    for k, v in interpretations.items():
+        print(f"\n{k}: {v}")
+
+    return interpretations
+
 
 def main():
     df = load_and_save()
@@ -189,7 +262,8 @@ def main():
     df = clean_missing(df)
     univariate_results = univariate_analysis(df)
     bivariate_results = bivariate_analysis(df)
-    return df, missing_pct, univariate_results, bivariate_results
+    multivariate_results = multivariate_analysis(df)
+    return df, missing_pct, univariate_results, bivariate_results, multivariate_results
 
 
 if __name__ == "__main__":
