@@ -1,0 +1,11 @@
+# venv & python
+venv/
+__pycache__/
+*.pyc
+
+# generated artifacts (regenerable, don't bloat the repo)
+chroma_db/
+*.pkl
+
+# env secrets
+.env
