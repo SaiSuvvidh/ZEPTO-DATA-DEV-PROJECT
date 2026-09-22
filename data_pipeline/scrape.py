@@ -20,6 +20,7 @@ OUTPUT_CSV = "data_pipeline/raw_books.csv"
 def scrape_listing_page(page_num: int, session: requests.Session) -> list[dict]:
     url = LISTING_URL.format(page_num)
     resp = session.get(url, timeout=10)
+    resp.encoding = "utf-8"
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -43,6 +44,7 @@ def scrape_listing_page(page_num: int, session: requests.Session) -> list[dict]:
 
 def fetch_category(detail_url: str, session: requests.Session) -> str:
     resp = session.get(detail_url, timeout=10)
+    resp.encoding = "utf-8"
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
     # Breadcrumb: Home > Books > <Category> > <Title>
