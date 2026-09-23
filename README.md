@@ -1,12 +1,14 @@
 # Zepto Data & AI Platform — Capstone Project
 
-An end-to-end AI/ML platform built for Zepto's analytics guild, spanning three linked modules in a single repository: a web-scraping data pipeline, a full EDA + predictive modeling pipeline, and a RAG-based GenAI support assistant.
+This is my submission for the AI/ML capstone — an end-to-end platform built as, If I were to join Zepto's analytics, covering three linked pieces: a scraping-based data pipeline, a full EDA + modeling pipeline on the Titanic dataset, and a RAG-based GenAI support assistant. All three live in this one repo, built and committed in that order.
 
 ## Repository Structure
-/data_pipeline/       - Scraping, cleaning, SQLite loading, SQL queries
-/analytics/           - Titanic EDA + classification/regression modeling
-/support_assistant/   - LangGraph + ChromaDB + FastAPI RAG service
-requirements.txt      - Single consolidated dependency file for all 3 modules
+
+/data_pipeline/ - Scraping, cleaning, SQLite loading, SQL queries
+/analytics/ - Titanic EDA + classification/regression modeling
+/support_assistant/ - LangGraph + ChromaDB + FastAPI RAG service
+requirements.txt - Single consolidated dependency file for all 3 modules
+
 
 ## Setup
 
@@ -18,7 +20,7 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-A single consolidated `requirements.txt` is used for all three modules rather than per-module files, since the whole project runs in one shared environment.
+The Project description left the requirements file open — either one per module or a single consolidated file, my choice to make. I went with one file for all three, since the whole project runs in one shared environment for me and there wasn't a real dependency split between modules that would've justified breaking it apart. That single file ended up mattering more than I expected — a mismatch between my terminal's `pip` and my venv's own `pip` left it silently missing half of Module 3's dependencies at one point, which I only caught once the Docker build failed on it (Full explanation extended in the support_assistant README).
 
 ## Running Each Module
 
@@ -35,6 +37,7 @@ python data_pipeline/queries.py     # runs 5 required SQL queries + pandas parit
 python analytics/_01_eda.py         # profiling, cleaning, EDA story, saves titanic.csv
 python analytics/_02_modeling.py    # stratified split, 3 classifiers, tuning, regression, saves best_pipeline.joblib
 ```
+(I named these with a leading underscore — `_01_eda.py`, `_02_modeling.py` — since Python doesn't allow module names to start with a digit. Keeps the intended run order visible without breaking imports.)
 
 ### 3. Support Assistant
 ```bash
@@ -46,15 +49,16 @@ uvicorn support_assistant.main:app --reload --port 8000   # run the API locally
 docker build -t zepto-support-assistant -f support_assistant/Dockerfile .
 docker run -p 7860:7860 zepto-support-assistant
 ```
-`MOCK_LLM` defaults to `1` (mock mode) — this is the graded baseline and requires no API key or network access to any LLM provider.
+`MOCK_LLM` defaults to `1`, which is the mode I built and tested everything against — no API key or network access to an LLM provider needed.
 
-## Design Decisions Summary
+## Design Decisions
 
-**Data Pipeline:** Scraped the first 5 catalogue listing pages (100 books, 28 categories) rather than picking fixed categories, to guarantee both row count and category diversity automatically. Malformed rows (5 books with a breadcrumb-generator artifact "Add a comment" instead of a real category) were dropped rather than imputed, since on this machine-generated source a parse failure indicates a corrupt row, not normal missingness. Fixed conversion rate: **1 GBP = 105.50 INR** (project-defined constant, not a live rate). Schema: normalized 2-table `categories`/`books` with PK/FK relationship, built via raw `sqlite3` rather than `to_sql` to control the FK constraint directly.
+**Data Pipeline.** The scope here was also left open — either scrape fixed categories or cover the first 5 listing pages of the full catalogue, as long as I cleared 60 books. I went with the listing-page route, since it gets both the row count and the category spread in one pass rather than me hand-picking categories and hoping they add up. That gave me 100 books across 28 categories. Five of those rows had `"Add a comment"` sitting where the category should be — I dug into this (full story in the data_pipeline README) and confirmed it's a genuine artifact from the site's own breadcrumb generator on a handful of pages, not something my scraper broke. I dropped those rows rather than guess at a category, landing on 95 clean rows. Currency conversion uses the fixed constant as per statement of Question Description: **1 GBP = 105.50 INR**, nothing live.
 
-**Analytics:** Missing values handled per the percentage-threshold rule: `embarked`/`embark_town` (0.22%) dropped, `age` (19.87%) median-imputed grouped by pclass+sex, `deck` (77.22%) encoded as its own "Unknown" category rather than dropped, since whether a cabin was recorded likely correlates with survival. Modeling used a `ColumnTransformer`+`Pipeline` fit strictly on the training split. Random Forest was the best classifier (Accuracy 0.816, F1 0.744, tuned OOB 0.823) and is the recommended deployment choice over Logistic Regression (higher AUC but lower F1) and Decision Tree (weakest on all metrics). Imbalance handling (`class_weight='balanced'`, SMOTE) did not improve on baseline F1, consistent with this dataset's only-mild imbalance (61.6%/38.4%). The fare-prediction regression side-task (R²=0.40) showed clear heteroscedasticity in its residuals.
+**Analytics.** I followed the missing-value threshold rule as given: dropped `embarked`/`embark_town` (0.22% missing each), median-imputed `age` grouped by pclass+sex (19.87% missing), and for `deck` (77.22% missing) — past the point where imputation is reliable — the Question description stated to either drop the column or encode the gaps as their own category and justify the pick in writing. I encoded it as "Unknown" instead of dropping it, since whether a cabin got recorded at all is plausibly tied to class and fare, and dropping the column felt like it would throw away a real signal along with the noise. For modeling, everything ran through a `ColumnTransformer` + `Pipeline` so I couldn't accidentally leak test data into training. Of the three classifiers, Random Forest came out ahead overall (0.816 accuracy, 0.744 F1, tuned OOB 0.823), so that's what I'd deploy, even though Logistic Regression edged it slightly on AUC. Neither `class_weight='balanced'` nor SMOTE beat the baseline F1 — with only mild imbalance in this dataset, I wasn't expecting either to move the needle much, and they didn't. The fare-prediction regression side-task was a separate exercise — R²=0.40 and a clearly heteroscedastic residual plot told me it's a useful exploratory model, not something I'd trust for production.
 
-**Support Assistant:** RAG pipeline over 8 Zepto policy documents, embedded locally with `all-MiniLM-L6-v2` and stored in ChromaDB — no API key needed for embeddings or retrieval. A 3-node LangGraph (`classify_intent` → `retrieve_and_answer` / `direct_answer`) routes queries via a keyword heuristic. The graded baseline runs entirely offline via `MOCK_LLM=1` (default): no real LLM call is made anywhere in the graded path — answers are either a canned template built from the top retrieved chunk, or a fixed refusal string for non-policy questions. The optional `MOCK_LLM=0` extension (not required for grading) would route generation through a real LLM using the structured prompt template in `prompt_template.py`.
+**Support Assistant.** I built the RAG pipeline over the 8 provided Zepto policy documents, embedding them locally with `all-MiniLM-L6-v2` and storing them in ChromaDB — no API key involved anywhere in retrieval. The LangGraph router uses a plain keyword heuristic to decide if a query needs policy retrieval or not. Everything I actually tested and got working runs under `MOCK_LLM=1` — no real LLM call anywhere in my graded path; the structured prompt template exists in the repo as required but only actually gets exercised if I ever flip on the optional real-LLM extension. I did hit a real snag getting the Dockerfile working (detailed in the support_assistant README) that turned out to trace back to `requirements.txt`, not the Dockerfile itself.
 
 ## Git Workflow
-All development happened on `feature/zepto-development`, committed incrementally through each module, then merged into `main`.
+
+All of this was built on `feature/zepto-development`, committed incrementally as I finished each piece, then merged into `main`. I noticed partway through that my first merge attempt fast-forwarded instead of leaving an actual merge commit (since `main` had no commits of its own past the branch point) — so I added an empty commit on the feature branch and redid the merge with `--no-ff` to get an explicit merge commit showing the branch history clearly in `git log --graph --all`.
