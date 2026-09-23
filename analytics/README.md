@@ -1,58 +1,75 @@
 # Analytics Module
 
-Full EDA + predictive modeling pipeline on the Titanic dataset: profiling, cleaning, univariate/bivariate/multivariate analysis, a stratified classification pipeline (3 models), imbalance handling comparison, hyperparameter tuning, and a regression side-task.
+Full EDA + predictive modeling pipeline on the Titanic dataset — profiling, cleaning, univariate/bivariate/multivariate analysis, a stratified classification pipeline across 3 models, an imbalance-handling comparison, hyperparameter tuning, and a regression side-task.
 
 ## Run
 ```bash
 python _01_eda.py        # profiling, cleaning, EDA story -> titanic.csv + chart PNGs
 python _02_modeling.py   # classification + regression modeling -> best_pipeline.joblib
 ```
-`sns.load_dataset('titanic')` is called exactly once, in `_01_eda.py`; `_02_modeling.py` reads the committed `titanic.csv` offline fallback, never re-loading from the network.
+`sns.load_dataset('titanic')` only gets called once, inside `_01_eda.py`, and I saved the result to `titanic.csv` immediately. `_02_modeling.py` reads that same CSV rather than touching the network again.
 
 ## Part A — EDA
 
-**Missing values (threshold rule applied):**
-| Column | % missing | Action |
+This module leaned less on debugging and more on the string of written justifications the task kept asking for — missing-value strategy, skew direction, correlation reads, imbalance strategy, deployment pick — each needing its own reasoning rather than just a number.
+
+**Missing values.** I applied the threshold rule as given, column by column:
+
+| Column | % missing | Action taken |
 |---|---|---|
-| `embarked` | 0.22% | Dropped (<5%) |
-| `embark_town` | 0.22% | Dropped (<5%) |
-| `age` | 19.87% | Median-imputed, grouped by pclass+sex (5–30%) |
-| `deck` | 77.22% | Encoded as "Unknown" category rather than dropped (>30%) — whether a cabin was recorded likely correlates with pclass/survival, so that signal was kept |
+| `embarked` | 0.22% | Dropped those rows (<5%) |
+| `embark_town` | 0.22% | Dropped (same rows, <5%) |
+| `age` | 19.87% | Median-imputed, grouped by pclass+sex (5–30% band) |
+| `deck` | 77.22% | Encoded as its own "Unknown" category rather than dropped (>30%) |
 
-**Univariate:** `age` has 32 IQR outliers, `fare` has 114. Fare: mean=32.10, median=14.45, mode=8.05 — **right-skewed** (mean > median > mode), driven by a small number of high-value tickets (up to ~512, the historical Cardeza family fare).
+The threshold rule covered everything under 30% cleanly, but `deck`'s 77% needed its own separate call — past that point, the task asked me to either drop the column or encode the gaps as their own category, and justify the pick. I kept it as "Unknown" rather than dropping it, since whether a passenger's cabin got logged at all is plausibly tied to class and fare — wealthier passengers in better cabins were probably more likely to have that recorded — so dropping the column felt like it would throw away a real signal along with the noise.
 
-**Bivariate:** Survival rate — female 0.740 vs male 0.189; class 1: 0.626, class 2: 0.473, class 3: 0.242; female 1st-class 0.967 vs male 3rd-class 0.135. Top 2 correlations (6×6 matrix, `survived`/`pclass`/`age`/`sibsp`/`parch`/`fare`): **pclass↔fare (-0.548)** — higher-numbered (cheaper) classes correlate with lower fares, confirming the fare/class relationship as expected; **sibsp↔parch (0.415)** — siblings/spouses and parents/children counts are correlated, suggesting both largely capture the same "traveling with family" signal.
+**Univariate.** `age` came out with 32 IQR outliers, `fare` with 114. For `fare`: mean=32.10, median=14.45, mode=8.05 — that ordering (mean > median > mode) told me it's right-skewed, which made sense once I looked at the actual histogram: a handful of very expensive tickets (up to ~512, which I now know is the historical Cardeza family fare) were dragging the mean upward while most tickets clustered cheap.
 
-**Multivariate story (4 charts, `story_1`–`story_4` PNGs):** Survival is driven primarily by sex, secondarily by class; age doesn't cleanly separate survival once class is controlled for, except children skew toward survival in every class; fare (as a class/cabin proxy) shows a denser high-fare band among survivors; survival rises for small families (1–3) vs solo travelers, then drops for large families (4+), suggesting a coordination "sweet spot."
+**Bivariate.** Breaking survival down by sex gave me 0.740 for women vs 0.189 for men — a huge gap. By class: 0.626 / 0.473 / 0.242 for 1st/2nd/3rd. Combining both, the extremes were striking — 0.967 survival for 1st-class women vs 0.135 for 3rd-class men. For the 6×6 correlation matrix, the two strongest pairs I found were `pclass`↔`fare` at -0.548 (makes sense — pclass counts down from 1 as the best class, so a negative correlation with fare is exactly what you'd expect: better class, higher fare) and `sibsp`↔`parch` at 0.415, which reads to me like both are largely picking up the same underlying "traveling with family" signal rather than being independent measurements.
 
-**Z-score check:** `age`/`fare` standardized to confirm mean≈0, std≈1 (`zscore_before_after.png`) — exploratory only, not fed into modeling.
+**Multivariate — the data story.** I built four charts to walk through what was actually driving survival:
+
+*Chart 1 — Survival rate by class and sex (`story_1_survival_by_class_sex.png`).* This one made it clear that sex is the dominant factor, by a wide margin — women survived at far higher rates than men in every single class. Class still mattered as a secondary factor, since survival drops from 1st to 3rd within each sex, but it's clearly second in line behind sex. This lines up with the "women and children first" evacuation policy, with class likely acting through practical things like cabin location and proximity to lifeboats.
+
+*Chart 2 — Age distribution by class and survival (`story_2_age_by_class_survival.png`).* Once I controlled for class, age on its own didn't separate survivors from non-survivors very cleanly — the medians look pretty similar. The one place age did visibly matter was at the young end: children showed a higher survival skew in every class, which fits the "children first" half of the evacuation policy.
+
+*Chart 3 — Fare vs age, colored by survival (`story_3_fare_vs_age_survival.png`).* Survivors were noticeably denser at higher fare values. There's no clean age band separating survivors from non-survivors, but there is a fairly clear fare threshold above which survival becomes more common — reinforcing that fare (as a stand-in for class and cabin location) mattered more than age.
+
+*Chart 4 — Survival rate by family size (`story_4_survival_by_family_size.png`).* This was the one I found most interesting. Survival rises from traveling completely alone up through small families (1–3 people), then drops off sharply for large families (4+). My read on this is a coordination "sweet spot": solo travelers may have gotten less help getting to a lifeboat, while very large families likely struggled to stay together and evacuate as a unit in the chaos — small families could coordinate quickly without being unwieldy.
+
+**Z-score check.** I standardized `age` and `fare` and confirmed the result lands at mean≈0, std≈1 (see `zscore_before_after.png`) — this was purely an exploratory sanity check, it doesn't feed into the modeling pipeline below, which does its own separate train-only scaling.
 
 ## Part B — Modeling
 
-**Split:** Stratified 80/20 on `survived`, justified by the dataset's class imbalance (61.6%/38.4%) — an unstratified split risks a test set with a meaningfully different survival ratio purely by chance.
+**Split.** Stratified 80/20 on `survived`. I stratified deliberately because the class balance is 61.6%/38.4%, not 50/50 — an unstratified split risks landing on a test set with a meaningfully different survival ratio just by chance, which would make my evaluation metrics noisier than they need to be.
 
-**Preprocessing:** `ColumnTransformer` (median-impute+scale numeric; most-frequent-impute+one-hot categorical) wrapped in a `Pipeline`, fit on training data only.
+**Preprocessing.** I built this as a `ColumnTransformer` (median-impute + scale for numeric columns, most-frequent-impute + one-hot for categorical) wrapped in a `Pipeline`, fit only on the training split. Doing it this way, rather than by hand, meant one couldn't accidentally leak test-set information into training even if one wasn't paying close attention.
 
 **Classifier comparison:**
+
 | Model | Accuracy | Precision | Recall | F1 | AUC |
 |---|---|---|---|---|---|
 | Logistic Regression | 0.804 | 0.793 | 0.667 | 0.724 | 0.844 |
 | Decision Tree | 0.765 | 0.755 | 0.580 | 0.656 | 0.797 |
 | Random Forest | 0.816 | 0.800 | 0.696 | 0.744 | 0.827 |
 
-**Imbalance handling (Random Forest):**
+Random Forest came out ahead on accuracy, precision, recall, and F1; Logistic Regression edged it slightly on AUC despite otherwise trailing.
+
+**Imbalance handling (tested on Random Forest):**
+
 | Variant | Precision | Recall | F1 |
 |---|---|---|---|
 | Baseline | 0.800 | 0.696 | 0.744 |
 | class_weight='balanced' | 0.754 | 0.710 | 0.731 |
 | SMOTE (train-fold only) | 0.754 | 0.710 | 0.731 |
 
-Baseline had the best F1; with only mild imbalance here, rebalancing traded precision for recall without a net F1 gain — the baseline was the better choice for this dataset.
+Both rebalancing techniques traded some precision for a bit more recall, but neither beat the baseline on F1. Given the imbalance here is mild (61.6/38.4, not severe), I wasn't expecting a big swing either way — this confirmed that for this particular dataset, the baseline was the better call.
 
-**Hyperparameter tuning (GridSearchCV, Random Forest):** Best params `{max_depth: 10, max_features: 'sqrt', n_estimators: 300}`, CV F1 = 0.737, **OOB score = 0.823**.
+**Hyperparameter tuning.** GridSearchCV over Random Forest's `n_estimators`, `max_depth`, and `max_features` landed on `{max_depth: 10, max_features: 'sqrt', n_estimators: 300}`, with a CV F1 of 0.737 and an OOB score of 0.823.
 
-**Regression side-task (predicting `fare`):** MAE=20.809, RMSE=30.473, R²=0.400, Adjusted R²=0.375. Residual plot shows a clear funnel shape — **heteroscedasticity confirmed** — error grows with predicted fare, consistent with fare's right-skewed distribution from Part A.
+**Regression side-task — predicting fare.** MAE=20.809, RMSE=30.473, R²=0.400, Adjusted R²=0.375. When I looked at the residual plot, there's a clear funnel shape — residuals stay tight at low predicted fares and spread out a lot as predicted fare increases. That's heteroscedasticity, and it makes sense given how right-skewed fare is to begin with: the model's errors are naturally larger on the handful of expensive tickets it's least equipped to predict precisely.
 
-**Final recommendation:** Random Forest is the recommended deployment model — best accuracy (0.816), precision (0.800), and F1 (0.744), with tuned OOB score 0.823. Logistic Regression has a marginally higher AUC (0.844 vs 0.827) but a weaker precision/recall balance. The regression model is exploratory (R²=0.40, heteroscedastic errors), not a deployment candidate.
+**My final recommendation.** I'd deploy Random Forest. It had the best accuracy (0.816), precision (0.800), and F1 (0.744) of the three, and the tuned version reached an OOB score of 0.823. Logistic Regression's slightly higher AUC (0.844 vs 0.827) wasn't enough to outweigh its weaker precision/recall balance for me. The fare-regression model is a separate, lower-confidence exercise — an R² of 0.40 and confirmed heteroscedasticity mean I'd treat it as exploratory rather than something to actually deploy.
 
-**Saved artifact:** `best_pipeline.joblib` — the complete tuned Random Forest pipeline (preprocessing + classifier), verified reloadable and correct on raw input via `joblib.load`.
+**Saved artifact.** I put the complete tuned Random Forest pipeline (preprocessing + classifier together) to `best_pipeline.joblib`, reloaded it, and confirmed it produces identical predictions on raw, unpreprocessed input.
