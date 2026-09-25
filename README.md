@@ -1,4 +1,4 @@
-# Zepto Data & AI Platform — Capstone Project
+# Zepto Data & AI Platform — Capstone Project Problem
 
 This is my submission for the AI/ML capstone — an end-to-end platform built as, If I were to join Zepto's analytics, covering three linked pieces: a scraping-based data pipeline, a full EDA + modeling pipeline on the Titanic dataset, and a RAG-based GenAI support assistant. All three live in this one repo, built and committed in that order.
 
